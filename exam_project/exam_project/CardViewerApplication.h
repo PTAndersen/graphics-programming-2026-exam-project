@@ -4,6 +4,7 @@
 #include <ituGL/texture/FramebufferObject.h>
 #include <ituGL/renderer/Renderer.h>
 #include <ituGL/utils/DearImGui.h>
+#include <ituGL/camera/Camera.h>
 
 #include <array>
 #include <memory>
@@ -28,30 +29,40 @@ private:
     void InitializeCard();
     void InitializeFramebuffers();
     void InitializeRenderer();
+    void InitializeCamera();
 
     std::shared_ptr<Material> CreatePostFXMaterial(const char* fragmentShaderPath, std::shared_ptr<Texture2DObject> sourceTexture = nullptr);
 
     void RenderGUI();
 
 private:
+    std::shared_ptr<Camera> m_camera;
+
+    // Helper object for debug GUI
     DearImGui m_imGui;
 
+    // Renderer
     Renderer m_renderer;
 
+    // Card textures
     std::shared_ptr<Texture2DObject> m_cardAlbedoTexture;
     std::shared_ptr<Texture2DObject> m_cardMaskTexture;
 
+    // Materials
     std::shared_ptr<Material> m_cardMaterial;
     std::shared_ptr<Material> m_bloomMaterial;
     std::shared_ptr<Material> m_composeMaterial;
 
+    // Framebuffers
     std::shared_ptr<FramebufferObject> m_sceneFramebuffer;
     std::shared_ptr<Texture2DObject> m_sceneTexture;
     std::array<std::shared_ptr<FramebufferObject>, 2> m_tempFramebuffers;
     std::array<std::shared_ptr<Texture2DObject>, 2> m_tempTextures;
 
+    // Card configuration values
     bool m_goldenMode;
 
+    // Post-processing configuration values
     float m_exposure;
     float m_contrast;
     float m_hueShift;

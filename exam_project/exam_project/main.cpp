@@ -1,4 +1,4 @@
-#include "PostFXSceneViewerApplication.h"
+#include "CardViewerApplication.h"
 
 int main()
 {

@@ -32,14 +32,23 @@ void CardViewerApplication::Initialize()
 {
     Application::Initialize();
 
+    glfwSetWindowAttrib(GetMainWindow().GetInternalWindow(), GLFW_RESIZABLE, GLFW_FALSE);
+
+    // Initialize DearImGUI
     m_imGui.Initialize(GetMainWindow());
 
+    InitializeCamera();
     InitializeRenderer();
 }
 
 void CardViewerApplication::Update()
 {
     Application::Update();
+    m_renderer.SetCurrentCamera(*m_camera);
+
+    int width, height;
+    GetMainWindow().GetDimensions(width, height);
+    m_cardMaterial->SetUniformValue("ScreenSize", glm::vec2((float)width, (float)height));
 }
 
 void CardViewerApplication::Render()
@@ -48,8 +57,10 @@ void CardViewerApplication::Render()
 
     GetDevice().Clear(true, Color(0.0f, 0.0f, 0.0f, 1.0f), true, 1.0f);
 
+    // Render the card and post-processing chain
     m_renderer.Render();
 
+    // Render the debug user interface
     RenderGUI();
 }
 
@@ -61,17 +72,29 @@ void CardViewerApplication::Cleanup()
 
 void CardViewerApplication::InitializeCard()
 {
-    // Load card textures
-    Texture2DLoader textureLoader;
+    Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA);
     textureLoader.SetFlipVertical(true);
 
     m_cardAlbedoTexture = textureLoader.LoadShared("textures/card_albedo.png");
     m_cardMaskTexture = textureLoader.LoadShared("textures/card_mask.png");
 
-    // Create the card material
     m_cardMaterial = CreatePostFXMaterial("shaders/card.frag", m_cardAlbedoTexture);
     m_cardMaterial->SetUniformValue("MaskTexture", m_cardMaskTexture);
     m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
+    m_cardMaterial->SetUniformValue("CardAspectRatio", glm::vec2(1589.0f, 2361.0f));
+
+    int width, height;
+    GetMainWindow().GetDimensions(width, height);
+    m_cardMaterial->SetUniformValue("ScreenSize", glm::vec2((float)width, (float)height));
+}
+
+void CardViewerApplication::InitializeCamera()
+{
+    m_camera = std::make_shared<Camera>();
+    m_camera->SetViewMatrix(glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    m_camera->SetPerspectiveProjectionMatrix(1.0f, 1.0f, 0.1f, 100.0f);
+
+    m_renderer.SetCurrentCamera(*m_camera);
 }
 
 void CardViewerApplication::InitializeFramebuffers()
@@ -79,6 +102,7 @@ void CardViewerApplication::InitializeFramebuffers()
     int width, height;
     GetMainWindow().GetDimensions(width, height);
 
+    // Scene texture
     m_sceneTexture = std::make_shared<Texture2DObject>();
     m_sceneTexture->Bind();
     m_sceneTexture->SetImage(0, width, height, TextureObject::FormatRGBA, TextureObject::InternalFormat::InternalFormatRGBA16F);
@@ -86,11 +110,13 @@ void CardViewerApplication::InitializeFramebuffers()
     m_sceneTexture->SetParameter(TextureObject::ParameterEnum::MagFilter, GL_LINEAR);
     Texture2DObject::Unbind();
 
+    // Scene framebuffer
     m_sceneFramebuffer->Bind();
     m_sceneFramebuffer->SetTexture(FramebufferObject::Target::Draw, FramebufferObject::Attachment::Color0, *m_sceneTexture);
     m_sceneFramebuffer->SetDrawBuffers(std::array<FramebufferObject::Attachment, 1>({ FramebufferObject::Attachment::Color0 }));
     FramebufferObject::Unbind();
 
+    // Temporary textures and framebuffers (for bloom + blur)
     for (int i = 0; i < m_tempFramebuffers.size(); ++i)
     {
         m_tempTextures[i] = std::make_shared<Texture2DObject>();
@@ -115,16 +141,20 @@ void CardViewerApplication::InitializeRenderer()
     int width, height;
     GetMainWindow().GetDimensions(width, height);
 
+    // Initialize the framebuffers and textures
     InitializeFramebuffers();
 
+    // Card pass: renders the card into m_sceneFramebuffer
     InitializeCard();
     m_renderer.AddRenderPass(std::make_unique<PostFXRenderPass>(m_cardMaterial, m_sceneFramebuffer));
 
+    // Bloom pass
     m_bloomMaterial = CreatePostFXMaterial("shaders/postfx/bloom.frag", m_sceneTexture);
     m_bloomMaterial->SetUniformValue("Range", m_bloomRange);
     m_bloomMaterial->SetUniformValue("Intensity", m_bloomIntensity);
     m_renderer.AddRenderPass(std::make_unique<PostFXRenderPass>(m_bloomMaterial, m_tempFramebuffers[0]));
 
+    // Blur passes
     std::shared_ptr<Material> blurHorizontalMaterial = CreatePostFXMaterial("shaders/postfx/blur.frag", m_tempTextures[0]);
     blurHorizontalMaterial->SetUniformValue("Scale", glm::vec2(1.0f / width, 0.0f));
     std::shared_ptr<Material> blurVerticalMaterial = CreatePostFXMaterial("shaders/postfx/blur.frag", m_tempTextures[1]);
@@ -135,6 +165,7 @@ void CardViewerApplication::InitializeRenderer()
         m_renderer.AddRenderPass(std::make_unique<PostFXRenderPass>(blurVerticalMaterial, m_tempFramebuffers[0]));
     }
 
+    // Final compose pass: scene + bloom, tone mapping, color grading, written to default framebuffer
     m_composeMaterial = CreatePostFXMaterial("shaders/postfx/compose.frag", m_sceneTexture);
     m_composeMaterial->SetUniformValue("Exposure", m_exposure);
     m_composeMaterial->SetUniformValue("Contrast", m_contrast);
