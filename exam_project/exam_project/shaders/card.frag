@@ -37,7 +37,14 @@ void main()
 
     vec4 albedo = texture(SourceTexture, uv);
     vec4 mask = texture(MaskTexture, uv);
+    float coverage = mask.r + mask.g + mask.b + mask.a;
 
+    if (coverage < 0.01)
+    {
+        FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
+    
     vec3 color = albedo.rgb;
 
     color = mix(color, vec3(1.0, 0.0, 0.0), mask.r * 0.5);
