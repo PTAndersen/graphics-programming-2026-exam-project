@@ -2,6 +2,7 @@
 
 #include <ituGL/texture/TextureObject.h>
 #include <ituGL/core/Data.h>
+#include <span>
 
 // Texture object in 2 dimensions
 class Texture2DObject : public TextureObjectBase<TextureObject::Texture2D>
