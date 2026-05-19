@@ -17,6 +17,7 @@ CardViewerApplication::CardViewerApplication()
     , m_renderer(GetDevice())
     , m_sceneFramebuffer(std::make_shared<FramebufferObject>())
     , m_goldenMode(false)
+    , m_enableSheen(true)
     , m_exposure(1.0f)
     , m_contrast(1.0f)
     , m_hueShift(0.0f)
@@ -25,6 +26,22 @@ CardViewerApplication::CardViewerApplication()
     , m_blurIterations(1)
     , m_bloomRange(1.0f, 2.0f)
     , m_bloomIntensity(1.0f)
+    , m_sheenIntensity(0.2f)
+    , m_sheenWidth(0.05f)
+    , m_sheenSpeed(0.45f)
+    , m_sheenAngleDeg(70.0f)
+    , m_sheenBandOffset(0.18f)
+    , m_goldSharpness(2.5f)
+    , m_goldAnisotropy(0.6f)
+    , m_goldHueShift(0.7f)
+    , m_goldReliefStrength(0.4f)
+    , m_goldRimStrength(0.8f)
+    , m_goldGlintDensity(0.5f)
+    , m_goldGlintBrightness(1.5f)
+    , m_goldFlowStrength(1.0f)
+    , m_goldFlowSpeed(1.0f)
+    , m_goldFlowBlobScale(15.0f)
+    , m_enableFlow(true)
 {
 }
 
@@ -49,6 +66,7 @@ void CardViewerApplication::Update()
     int width, height;
     GetMainWindow().GetDimensions(width, height);
     m_cardMaterial->SetUniformValue("ScreenSize", glm::vec2((float)width, (float)height));
+    m_cardMaterial->SetUniformValue("Time", (float)glfwGetTime());
 }
 
 void CardViewerApplication::Render()
@@ -83,11 +101,32 @@ void CardViewerApplication::InitializeCard()
     m_cardMaterial = CreatePostFXMaterial("shaders/card.frag", m_cardAlbedoTexture);
     m_cardMaterial->SetUniformValue("MaskTexture", m_cardMaskTexture);
     m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
+    m_cardMaterial->SetUniformValue("EnableSheen",      m_enableSheen      ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("CardAspectRatio", glm::vec2(1589.0f, 2361.0f));
 
     int width, height;
     GetMainWindow().GetDimensions(width, height);
     m_cardMaterial->SetUniformValue("ScreenSize", glm::vec2((float)width, (float)height));
+
+    m_cardMaterial->SetUniformValue("Time", 0.0f);
+    m_cardMaterial->SetUniformValue("SheenSpeed", m_sheenSpeed);
+    m_cardMaterial->SetUniformValue("SheenWidth", m_sheenWidth);
+    m_cardMaterial->SetUniformValue("SheenIntensity", m_sheenIntensity);
+    m_cardMaterial->SetUniformValue("SheenAngleDeg", m_sheenAngleDeg);
+    m_cardMaterial->SetUniformValue("SheenBandOffset", m_sheenBandOffset);
+    m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
+    m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
+    m_cardMaterial->SetUniformValue("GoldHueShift", m_goldHueShift);
+
+    m_cardMaterial->SetUniformValue("GoldReliefStrength", m_goldReliefStrength);
+    m_cardMaterial->SetUniformValue("GoldRimStrength", m_goldRimStrength);
+    m_cardMaterial->SetUniformValue("GoldGlintDensity", m_goldGlintDensity);
+    m_cardMaterial->SetUniformValue("GoldGlintBrightness", m_goldGlintBrightness);
+
+    m_cardMaterial->SetUniformValue("GoldFlowStrength", m_goldFlowStrength);
+    m_cardMaterial->SetUniformValue("GoldFlowSpeed", m_goldFlowSpeed);
+    m_cardMaterial->SetUniformValue("EnableFlow", m_enableFlow ? 1.0f : 0.0f);
+    m_cardMaterial->SetUniformValue("GoldFlowBlobScale", m_goldFlowBlobScale);
 }
 
 void CardViewerApplication::InitializeCamera()
@@ -212,6 +251,51 @@ void CardViewerApplication::RenderGUI()
         {
             m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
         }
+
+        if (ImGui::Checkbox("Sheen", &m_enableSheen))
+            m_cardMaterial->SetUniformValue("EnableSheen", m_enableSheen ? 1.0f : 0.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Sheen");
+
+        if (ImGui::SliderFloat("Speed", &m_sheenSpeed, 0.0f, 3.0f))
+            m_cardMaterial->SetUniformValue("SheenSpeed", m_sheenSpeed);
+        if (ImGui::SliderFloat("Width", &m_sheenWidth, 0.01f, 0.30f))
+            m_cardMaterial->SetUniformValue("SheenWidth", m_sheenWidth);
+        if (ImGui::SliderFloat("Intensity", &m_sheenIntensity, 0.0f, 5.0f))
+            m_cardMaterial->SetUniformValue("SheenIntensity", m_sheenIntensity);
+        if (ImGui::SliderFloat("Angle", &m_sheenAngleDeg, 0.0f, 180.0f))
+            m_cardMaterial->SetUniformValue("SheenAngleDeg", m_sheenAngleDeg);
+        if (ImGui::SliderFloat("Band Offset", &m_sheenBandOffset, -0.5f, 0.5f))
+            m_cardMaterial->SetUniformValue("SheenBandOffset", m_sheenBandOffset);
+
+        ImGui::Separator();
+        ImGui::Text("Gold");
+
+        if (ImGui::SliderFloat("Sharpness", &m_goldSharpness, 1.0f, 6.0f))
+            m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
+        if (ImGui::SliderFloat("Anisotropy", &m_goldAnisotropy, 0.0f, 2.0f))
+            m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
+        if (ImGui::SliderFloat("Hue Shift", &m_goldHueShift, 0.0f, 1.0f))
+            m_cardMaterial->SetUniformValue("GoldHueShift", m_goldHueShift);
+
+        if (ImGui::SliderFloat("Relief", &m_goldReliefStrength, 0.0f, 1.0f))
+            m_cardMaterial->SetUniformValue("GoldReliefStrength", m_goldReliefStrength);
+        if (ImGui::SliderFloat("Rim", &m_goldRimStrength, 0.0f, 2.0f))
+            m_cardMaterial->SetUniformValue("GoldRimStrength", m_goldRimStrength);
+        if (ImGui::SliderFloat("Glint Density", &m_goldGlintDensity, 0.0f, 1.0f))
+            m_cardMaterial->SetUniformValue("GoldGlintDensity", m_goldGlintDensity);
+        if (ImGui::SliderFloat("Glint Brightness", &m_goldGlintBrightness, 0.0f, 3.0f))
+            m_cardMaterial->SetUniformValue("GoldGlintBrightness", m_goldGlintBrightness);
+
+        if (ImGui::Checkbox("Flow", &m_enableFlow))
+            m_cardMaterial->SetUniformValue("EnableFlow", m_enableFlow ? 1.0f : 0.0f);
+        if (ImGui::SliderFloat("Flow Strength", &m_goldFlowStrength, 0.0f, 3.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowStrength", m_goldFlowStrength);
+        if (ImGui::SliderFloat("Flow Speed", &m_goldFlowSpeed, 0.1f, 3.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowSpeed", m_goldFlowSpeed);
+        if (ImGui::SliderFloat("Flow Blob Scale", &m_goldFlowBlobScale, 4.0f, 40.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowBlobScale", m_goldFlowBlobScale);
     }
 
     if (auto window = m_imGui.UseWindow("Post FX"))

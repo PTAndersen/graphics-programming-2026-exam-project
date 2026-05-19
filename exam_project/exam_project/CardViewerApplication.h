@@ -61,6 +61,7 @@ private:
 
     // Card configuration values
     bool m_goldenMode;
+    bool m_enableSheen;
 
     // Post-processing configuration values
     float m_exposure;
@@ -71,4 +72,25 @@ private:
     int m_blurIterations;
     glm::vec2 m_bloomRange;
     float m_bloomIntensity;
+
+    // Sheen
+    float m_sheenSpeed;
+    float m_sheenWidth;
+    float m_sheenIntensity;
+    float m_sheenAngleDeg;
+    float m_sheenBandOffset;
+
+    float m_goldSharpness;
+    float m_goldAnisotropy;
+    float m_goldHueShift;
+
+    float m_goldReliefStrength;
+    float m_goldRimStrength;
+    float m_goldGlintDensity;
+    float m_goldGlintBrightness;
+
+    float m_goldFlowStrength;
+    float m_goldFlowSpeed;
+    float m_goldFlowBlobScale;
+    bool m_enableFlow;
 };
