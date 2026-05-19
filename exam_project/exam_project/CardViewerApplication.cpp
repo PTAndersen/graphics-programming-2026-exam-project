@@ -72,11 +72,13 @@ void CardViewerApplication::Cleanup()
 
 void CardViewerApplication::InitializeCard()
 {
-    Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA);
-    textureLoader.SetFlipVertical(true);
+    Texture2DLoader maskLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA);
+    maskLoader.SetFlipVertical(true);
+    m_cardMaskTexture = maskLoader.LoadShared("textures/card_mask.png");
 
-    m_cardAlbedoTexture = textureLoader.LoadShared("textures/card_albedo.png");
-    m_cardMaskTexture = textureLoader.LoadShared("textures/card_mask.png");
+    Texture2DLoader albedoLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatSRGBA8);
+    albedoLoader.SetFlipVertical(true);
+    m_cardAlbedoTexture = albedoLoader.LoadShared("textures/card_albedo.png");
 
     m_cardMaterial = CreatePostFXMaterial("shaders/card.frag", m_cardAlbedoTexture);
     m_cardMaterial->SetUniformValue("MaskTexture", m_cardMaskTexture);
