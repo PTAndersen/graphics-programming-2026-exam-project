@@ -81,6 +81,7 @@ private:
     float m_sheenBandOffset;
 
     float m_goldSharpness;
+    float m_goldGateCenter;
     float m_goldAnisotropy;
     float m_goldHueShift;
 

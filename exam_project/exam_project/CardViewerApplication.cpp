@@ -28,12 +28,13 @@ CardViewerApplication::CardViewerApplication()
     , m_bloomIntensity(1.0f)
     , m_sheenIntensity(0.2f)
     , m_sheenWidth(0.05f)
-    , m_sheenSpeed(0.45f)
+    , m_sheenSpeed(0.2f)
     , m_sheenAngleDeg(70.0f)
     , m_sheenBandOffset(0.18f)
     , m_goldSharpness(2.5f)
+    , m_goldGateCenter(0.25f)
     , m_goldAnisotropy(0.6f)
-    , m_goldHueShift(0.7f)
+    , m_goldHueShift(0.0f)
     , m_goldReliefStrength(0.4f)
     , m_goldRimStrength(0.8f)
     , m_enableFlow(true)
@@ -125,6 +126,7 @@ void CardViewerApplication::InitializeCard()
     m_cardMaterial->SetUniformValue("SheenAngleDeg", m_sheenAngleDeg);
     m_cardMaterial->SetUniformValue("SheenBandOffset", m_sheenBandOffset);
     m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
+    m_cardMaterial->SetUniformValue("GoldGateCenter", m_goldGateCenter);
     m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
     m_cardMaterial->SetUniformValue("GoldHueShift", m_goldHueShift);
 
@@ -304,6 +306,8 @@ void CardViewerApplication::RenderGUI()
 
         if (ImGui::SliderFloat("Sharpness", &m_goldSharpness, 1.0f, 6.0f))
             m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
+        if (ImGui::SliderFloat("Gate Center", &m_goldGateCenter, 0.05f, 0.95f))
+            m_cardMaterial->SetUniformValue("GoldGateCenter", m_goldGateCenter);
         if (ImGui::SliderFloat("Anisotropy", &m_goldAnisotropy, 0.0f, 2.0f))
             m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
         if (ImGui::SliderFloat("Hue Shift", &m_goldHueShift, 0.0f, 1.0f))
