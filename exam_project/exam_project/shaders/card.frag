@@ -1,10 +1,6 @@
-//Inputs
 in vec2 TexCoord;
-
-//Outputs
 out vec4 FragColor;
 
-//Uniforms
 uniform sampler2D SourceTexture;
 uniform sampler2D MaskTexture;
 uniform float GoldenMode;
@@ -25,13 +21,26 @@ uniform float GoldHueShift;
 
 uniform float GoldReliefStrength;
 uniform float GoldRimStrength;
-uniform float GoldGlintDensity;
-uniform float GoldGlintBrightness;
 
 uniform float GoldFlowStrength;
 uniform float GoldFlowSpeed;
 uniform float GoldFlowBlobScale;
+uniform float GoldFlowDensity;
 uniform float EnableFlow;
+
+uniform float GoldFlowStrengthB;
+uniform float GoldFlowSpeedB;
+uniform float GoldFlowBlobScaleB;
+uniform float GoldFlowDensityB;
+
+uniform float SparkleDensity;
+uniform float SparkleBrightness;
+uniform float SparkleSize;
+uniform float SparkleSpeed;
+uniform float EnableSparkles;
+
+uniform float PixelSize;
+uniform float EnablePixelArt;
 
 float hash21(vec2 p)
 {
@@ -69,6 +78,7 @@ vec3 toGold(vec3 baseColor, vec2 uv)
     vec3 hi = mix(goldMid, goldHighlight, gate);
     vec3 result = mix(body, hi, gate);
 
+    // Anisotropic streak along the luminance gradient.
     vec2 grain = vec2(dFdx(luminance), dFdy(luminance));
     vec2 streakDir = normalize(vec2(0.7, 0.7));
     float streak = clamp(abs(dot(grain, streakDir)) * 80.0, 0.0, 1.0);
@@ -116,6 +126,7 @@ float lumAt(vec2 sampleUv)
     return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
+// Relief shading via explicit 4-tap neighbour sampling (avoids dFdx/dFdy quad snapping artifacts).
 float computeRelief(vec2 uv)
 {
     vec2 texel = 1.0 / vec2(textureSize(SourceTexture, 0));
@@ -138,34 +149,94 @@ float computeRimWeight(float maskValue)
     return clamp(w * 30.0, 0.0, 1.0) * maskValue;
 }
 
-float computeGlints(vec2 uv, float gateValue)
+// Domain-warped two-octave value noise, density-thresholded, with position-keyed breathing.
+float flowLayer(vec2 uv, float t, float scale, float density)
 {
-    vec2 sampleUv = uv * 800.0 + vec2(Time * 0.5, Time * 0.3);
-    float n = hash21(floor(sampleUv));
-    float threshold = 1.0 - 0.05 * GoldGlintDensity;
-    float glint = smoothstep(threshold, threshold + 0.01, n);
-    return glint * gateValue;
+    float s1 = scale;
+    float s2 = scale * 2.3;
+
+    float n1 = valueNoise(uv * s1 + vec2( t * 0.13, t * 0.09));
+    vec2  warp = vec2(n1 - 0.5) * 0.6;
+    float n2 = valueNoise(uv * s2 + warp + vec2(-t * 0.07, t * 0.11));
+
+    float blobs = n1 * 0.7 + n2 * 0.3;
+
+    float lo = mix(0.75, 0.30, density);
+    float hi = lo + 0.30;
+    float hot = smoothstep(lo, hi, blobs);
+
+    float localPhase = n1 * 6.2831;
+    float breathe = 0.5 + 0.5 * sin(t * 1.7 + localPhase);
+    hot *= mix(0.6, 1.0, breathe);
+
+    return hot;
 }
 
-float computeFlow(vec2 uv, out float blobOut)
+// Two layers, UV-offset to decorrelate hotspot positions.
+void computeFlow(vec2 uv, out float hotA, out float hotB)
 {
-    float t = Time * GoldFlowSpeed;
+    float tA = Time * GoldFlowSpeed;
+    float tB = Time * GoldFlowSpeedB;
+    hotA = flowLayer(uv,              tA, GoldFlowBlobScale,  GoldFlowDensity);
+    hotB = flowLayer(uv + vec2(17.3), tB, GoldFlowBlobScaleB, GoldFlowDensityB);
+}
 
-    float s1 = GoldFlowBlobScale;
-    float s2 = GoldFlowBlobScale * 1.7;
-    float n1 = valueNoise(uv * s1 + vec2( t * 0.10, t * 0.07));
-    float n2 = valueNoise(uv * s2 + vec2(-t * 0.06, t * 0.09));
-    float blobs = (n1 * 0.6 + n2 * 0.4);
-    float blobsCentered = (blobs - 0.5) * 0.20;
+// Animated 4-point star sparkles, 3x3 cell scan so spikes can cross cell boundaries.
+float computeSparkles(vec2 uv)
+{
+    vec2 aspect = vec2(CardAspectRatio.x / CardAspectRatio.y, 1.0);
+    float gridScale = 14.0;
+    vec2 gridUv = uv * aspect * gridScale;
 
-    float breathe = sin(t * 1.3) * 0.02;
+    vec2 cell = floor(gridUv);
+    vec2 frag = fract(gridUv);
 
-    blobOut = blobsCentered;
-    return 1.0 + (blobsCentered + breathe) * GoldFlowStrength;
+    float total = 0.0;
+
+    for (int oy = -1; oy <= 1; ++oy)
+    for (int ox = -1; ox <= 1; ++ox)
+    {
+        vec2 offset = vec2(float(ox), float(oy));
+        vec2 neighbourCell = cell + offset;
+
+        float presence = hash21(neighbourCell + vec2(11.0, 23.0));
+        float presenceThreshold = 1.0 - SparkleDensity;
+        if (presence < presenceThreshold) continue;
+
+        vec2 jitter = vec2(
+            hash21(neighbourCell + vec2(7.0, 19.0)),
+            hash21(neighbourCell + vec2(31.0, 41.0))
+        );
+        vec2 sparkleCenter = offset + jitter;
+        vec2 delta = frag - sparkleCenter;
+
+        // Triangle-wave lifecycle, sharpened.
+        float phase = hash21(neighbourCell + vec2(53.0, 71.0));
+        float lifeT = fract(Time * SparkleSpeed * 0.3 + phase);
+        float life = 1.0 - abs(lifeT * 2.0 - 1.0);
+        life = pow(life, 2.5);
+
+        // Two perpendicular Gaussian spikes plus a tight core.
+        float spikeWidth = 0.015 / SparkleSize;
+        float spikeLength = 0.4 * SparkleSize;
+
+        float hSpike = exp(-(delta.y * delta.y) / spikeWidth) *
+                       exp(-(delta.x * delta.x) / (spikeLength * spikeLength));
+        float vSpike = exp(-(delta.x * delta.x) / spikeWidth) *
+                       exp(-(delta.y * delta.y) / (spikeLength * spikeLength));
+
+        float core = exp(-dot(delta, delta) / (0.005 * SparkleSize)) * 1.5;
+        float star = (hSpike + vSpike) * 0.6 + core;
+
+        total += star * life;
+    }
+
+    return total;
 }
 
 void main()
 {
+    // Aspect-corrected card-space UV with letterboxing.
     float screenAspect = ScreenSize.x / ScreenSize.y;
     float cardAspect = CardAspectRatio.x / CardAspectRatio.y;
     vec2 uv = TexCoord;
@@ -185,6 +256,15 @@ void main()
         return;
     }
 
+    // Pixel-art snap: every downstream sample inherits the grid.
+    if (EnablePixelArt > 0.5)
+    {
+        vec2 aspect = vec2(1.0, CardAspectRatio.y / CardAspectRatio.x);
+        vec2 gridUv = uv * aspect * PixelSize;
+        gridUv = (floor(gridUv) + 0.5) / PixelSize;
+        uv = gridUv / aspect;
+    }
+
     vec4 mask = texture(MaskTexture, uv);
     float coverage = mask.r + mask.g + mask.b + mask.a;
     if (coverage < 0.01)
@@ -196,6 +276,7 @@ void main()
     vec4 albedo = texture(SourceTexture, uv);
     vec3 baseColor = albedo.rgb;
 
+    // Art region override to dark slate.
     baseColor = mix(baseColor, vec3(0.10, 0.10, 0.15), mask.b);
 
     vec3 normalColor = baseColor;
@@ -203,27 +284,75 @@ void main()
     vec3 goldColor = toGold(baseColor, uv);
 
     float relief = computeRelief(uv);
-    float reliefMul = 1.0 + relief * GoldReliefStrength;
-    goldColor *= reliefMul;
+    goldColor *= 1.0 + relief * GoldReliefStrength;
 
-    float rimWeight = computeRimWeight(mask.r);
+    // Rim: fwidth in normal mode, discrete neighbour check in pixel mode.
+    float rimWeight;
+    if (EnablePixelArt > 0.5)
+    {
+        vec2 aspect = vec2(1.0, CardAspectRatio.y / CardAspectRatio.x);
+        vec2 texStep = (1.0 / PixelSize) / aspect;
+
+        vec2 uvR = clamp(uv + vec2( texStep.x, 0.0), vec2(0.0), vec2(1.0));
+        vec2 uvL = clamp(uv + vec2(-texStep.x, 0.0), vec2(0.0), vec2(1.0));
+        vec2 uvU = clamp(uv + vec2(0.0,  texStep.y), vec2(0.0), vec2(1.0));
+        vec2 uvD = clamp(uv + vec2(0.0, -texStep.y), vec2(0.0), vec2(1.0));
+
+        vec4 nR = texture(MaskTexture, uvR);
+        vec4 nL = texture(MaskTexture, uvL);
+        vec4 nU = texture(MaskTexture, uvU);
+        vec4 nD = texture(MaskTexture, uvD);
+
+        // Inner rim: gold meets another region.
+        float minNeighbourGold = min(min(nR.r, nL.r), min(nU.r, nD.r));
+        float innerEdge = 1.0 - smoothstep(0.3, 0.7, minNeighbourGold);
+
+        // Outer rim: gold meets discarded space.
+        float covR = nR.r + nR.g + nR.b + nR.a;
+        float covL = nL.r + nL.g + nL.b + nL.a;
+        float covU = nU.r + nU.g + nU.b + nU.a;
+        float covD = nD.r + nD.g + nD.b + nD.a;
+        float minNeighbourCoverage = min(min(covR, covL), min(covU, covD));
+        float outerEdge = 1.0 - smoothstep(0.05, 0.5, minNeighbourCoverage);
+
+        float edge = max(innerEdge, outerEdge);
+        float here = step(0.5, mask.r);
+        rimWeight = here * edge;
+    }
+    else
+    {
+        rimWeight = computeRimWeight(mask.r);
+    }
     vec3 rimColor = vec3(1.20, 0.85, 0.30);
     goldColor += rimColor * rimWeight * GoldRimStrength;
 
-    float goldLum = dot(goldColor, vec3(0.299, 0.587, 0.114));
-    float glintGate = smoothstep(0.5, 1.0, goldLum);
-    float glints = computeGlints(uv, glintGate);
-    goldColor += vec3(1.0, 0.9, 0.6) * glints * GoldGlintBrightness;
+    // Two-layer flow as additive warm light into the bloom range.
+    float hotA = 0.0;
+    float hotB = 0.0;
+    computeFlow(uv, hotA, hotB);
+    hotA *= EnableFlow;
+    hotB *= EnableFlow;
 
-    float blob = 0.0;
-    float flowMul = mix(1.0, computeFlow(uv, blob), EnableFlow);
-    goldColor *= flowMul;
+    vec3 flowTintA = vec3(1.25, 1.00, 0.55);
+    vec3 flowTintB = vec3(1.40, 1.10, 0.70);
+    goldColor += flowTintA * hotA * GoldFlowStrength;
+    goldColor += flowTintB * hotB * GoldFlowStrengthB;
 
+    float blob = hotA + hotB;
+
+    // Per-region composite.
     vec3 goldenColor = baseColor;
     goldenColor = mix(goldenColor, goldColor,                  mask.r);
     goldenColor = mix(goldenColor, toSilver(baseColor),        mask.g);
     goldenColor = mix(goldenColor, toAgedParchment(baseColor), mask.a);
 
+    // Sparkles on gold + silver.
+    float sparkleMask = clamp(mask.r + mask.g, 0.0, 1.0);
+    float sparkles = computeSparkles(uv) * sparkleMask * EnableSparkles;
+    vec3 sparkleTint = vec3(1.10, 1.05, 0.90);
+    goldenColor += sparkleTint * sparkles * SparkleBrightness;
+
+    // Sheen sweep. Boost over flow hotspots so the band catches them brighter.
     float angleRad = radians(SheenAngleDeg);
     vec2 sweepDir = vec2(cos(angleRad), sin(angleRad));
     float d = dot(uv - vec2(0.5), sweepDir);
@@ -236,13 +365,10 @@ void main()
     float sheen = (band1 + band2) * SheenIntensity;
 
     float metalMask = clamp(mask.r + mask.g, 0.0, 1.0);
-    float sheenBoost = 1.0 + blob * 6.0 * mask.r * EnableFlow;
+    float sheenBoost = 1.0 + blob * 2.0 * mask.r * EnableFlow;
     vec3 sheenTint = mix(vec3(1.0), goldenColor, 0.25) * sheenBoost;
-    vec3 sheenContribution = sheen * metalMask * sheenTint * GoldenMode * EnableSheen;
-
-    goldenColor += sheenContribution;
+    goldenColor += sheen * metalMask * sheenTint * GoldenMode * EnableSheen;
 
     vec3 color = mix(normalColor, goldenColor, GoldenMode);
-
     FragColor = vec4(color, 1.0);
 }

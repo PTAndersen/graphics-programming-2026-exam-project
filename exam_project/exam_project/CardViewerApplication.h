@@ -86,11 +86,24 @@ private:
 
     float m_goldReliefStrength;
     float m_goldRimStrength;
-    float m_goldGlintDensity;
-    float m_goldGlintBrightness;
 
     float m_goldFlowStrength;
     float m_goldFlowSpeed;
     float m_goldFlowBlobScale;
+    float m_goldFlowDensity;
     bool m_enableFlow;
+
+    float m_goldFlowStrengthB;
+    float m_goldFlowBlobScaleB;
+    float m_goldFlowDensityB;
+    float m_goldFlowSpeedB;
+
+    float m_sparkleDensity;
+    float m_sparkleBrightness;
+    float m_sparkleSize;
+    float m_sparkleSpeed;
+    bool  m_enableSparkles;
+
+    float m_pixelSize;
+    bool  m_enablePixelArt;
 };

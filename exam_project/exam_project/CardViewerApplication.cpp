@@ -36,12 +36,22 @@ CardViewerApplication::CardViewerApplication()
     , m_goldHueShift(0.7f)
     , m_goldReliefStrength(0.4f)
     , m_goldRimStrength(0.8f)
-    , m_goldGlintDensity(0.5f)
-    , m_goldGlintBrightness(1.5f)
-    , m_goldFlowStrength(1.0f)
-    , m_goldFlowSpeed(1.0f)
-    , m_goldFlowBlobScale(15.0f)
     , m_enableFlow(true)
+    , m_goldFlowStrength(0.15f)
+    , m_goldFlowSpeed(3.0f)
+    , m_goldFlowBlobScale(10.0f)
+    , m_goldFlowDensity(0.6f)
+    , m_goldFlowStrengthB(0.5f)
+    , m_goldFlowBlobScaleB(12.5f)
+    , m_goldFlowDensityB(0.5f)
+    , m_goldFlowSpeedB(1.1f)
+    , m_sparkleDensity(0.4f)
+    , m_sparkleBrightness(0.3f)
+    , m_sparkleSize(0.3f)
+    , m_sparkleSpeed(1.2f)
+    , m_enableSparkles(true)
+    , m_pixelSize(100.0f)
+    , m_enablePixelArt(false)
 {
 }
 
@@ -120,13 +130,26 @@ void CardViewerApplication::InitializeCard()
 
     m_cardMaterial->SetUniformValue("GoldReliefStrength", m_goldReliefStrength);
     m_cardMaterial->SetUniformValue("GoldRimStrength", m_goldRimStrength);
-    m_cardMaterial->SetUniformValue("GoldGlintDensity", m_goldGlintDensity);
-    m_cardMaterial->SetUniformValue("GoldGlintBrightness", m_goldGlintBrightness);
 
+    m_cardMaterial->SetUniformValue("EnableFlow", m_enableFlow ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("GoldFlowStrength", m_goldFlowStrength);
     m_cardMaterial->SetUniformValue("GoldFlowSpeed", m_goldFlowSpeed);
-    m_cardMaterial->SetUniformValue("EnableFlow", m_enableFlow ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("GoldFlowBlobScale", m_goldFlowBlobScale);
+    m_cardMaterial->SetUniformValue("GoldFlowDensity", m_goldFlowDensity);
+
+    m_cardMaterial->SetUniformValue("GoldFlowStrengthB", m_goldFlowStrengthB);
+    m_cardMaterial->SetUniformValue("GoldFlowBlobScaleB", m_goldFlowBlobScaleB);
+    m_cardMaterial->SetUniformValue("GoldFlowDensityB", m_goldFlowDensityB);
+    m_cardMaterial->SetUniformValue("GoldFlowSpeedB", m_goldFlowSpeedB);
+
+    m_cardMaterial->SetUniformValue("SparkleDensity", m_sparkleDensity);
+    m_cardMaterial->SetUniformValue("SparkleBrightness", m_sparkleBrightness);
+    m_cardMaterial->SetUniformValue("SparkleSize", m_sparkleSize);
+    m_cardMaterial->SetUniformValue("SparkleSpeed", m_sparkleSpeed);
+    m_cardMaterial->SetUniformValue("EnableSparkles", m_enableSparkles ? 1.0f : 0.0f);
+
+    m_cardMaterial->SetUniformValue("PixelSize", m_pixelSize);
+    m_cardMaterial->SetUniformValue("EnablePixelArt", m_enablePixelArt ? 1.0f : 0.0f);
 }
 
 void CardViewerApplication::InitializeCamera()
@@ -252,12 +275,19 @@ void CardViewerApplication::RenderGUI()
             m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
         }
 
-        if (ImGui::Checkbox("Sheen", &m_enableSheen))
-            m_cardMaterial->SetUniformValue("EnableSheen", m_enableSheen ? 1.0f : 0.0f);
+        ImGui::Separator();
+        ImGui::Text("Pixel Art");
+
+        if (ImGui::Checkbox("Pixelate", &m_enablePixelArt))
+            m_cardMaterial->SetUniformValue("EnablePixelArt", m_enablePixelArt ? 1.0f : 0.0f);
+        if (ImGui::SliderFloat("Pixel Size", &m_pixelSize, 24.0f, 400.0f))
+            m_cardMaterial->SetUniformValue("PixelSize", m_pixelSize);
 
         ImGui::Separator();
         ImGui::Text("Sheen");
 
+        if (ImGui::Checkbox("Sheen", &m_enableSheen))
+            m_cardMaterial->SetUniformValue("EnableSheen", m_enableSheen ? 1.0f : 0.0f);
         if (ImGui::SliderFloat("Speed", &m_sheenSpeed, 0.0f, 3.0f))
             m_cardMaterial->SetUniformValue("SheenSpeed", m_sheenSpeed);
         if (ImGui::SliderFloat("Width", &m_sheenWidth, 0.01f, 0.30f))
@@ -281,12 +311,11 @@ void CardViewerApplication::RenderGUI()
 
         if (ImGui::SliderFloat("Relief", &m_goldReliefStrength, 0.0f, 1.0f))
             m_cardMaterial->SetUniformValue("GoldReliefStrength", m_goldReliefStrength);
-        if (ImGui::SliderFloat("Rim", &m_goldRimStrength, 0.0f, 2.0f))
+        if (ImGui::SliderFloat("Rim", &m_goldRimStrength, 0.0f, 2.0f))                          // re-add
             m_cardMaterial->SetUniformValue("GoldRimStrength", m_goldRimStrength);
-        if (ImGui::SliderFloat("Glint Density", &m_goldGlintDensity, 0.0f, 1.0f))
-            m_cardMaterial->SetUniformValue("GoldGlintDensity", m_goldGlintDensity);
-        if (ImGui::SliderFloat("Glint Brightness", &m_goldGlintBrightness, 0.0f, 3.0f))
-            m_cardMaterial->SetUniformValue("GoldGlintBrightness", m_goldGlintBrightness);
+        
+        ImGui::Separator();
+        ImGui::Text("Flow A");
 
         if (ImGui::Checkbox("Flow", &m_enableFlow))
             m_cardMaterial->SetUniformValue("EnableFlow", m_enableFlow ? 1.0f : 0.0f);
@@ -296,6 +325,34 @@ void CardViewerApplication::RenderGUI()
             m_cardMaterial->SetUniformValue("GoldFlowSpeed", m_goldFlowSpeed);
         if (ImGui::SliderFloat("Flow Blob Scale", &m_goldFlowBlobScale, 4.0f, 40.0f))
             m_cardMaterial->SetUniformValue("GoldFlowBlobScale", m_goldFlowBlobScale);
+        if (ImGui::SliderFloat("Flow Density", &m_goldFlowDensity, 0.0f, 1.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowDensity", m_goldFlowDensity);
+        
+        ImGui::Separator();
+        ImGui::Text("Flow B");
+
+        if (ImGui::SliderFloat("Strength B", &m_goldFlowStrengthB, 0.0f, 3.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowStrengthB", m_goldFlowStrengthB);
+        if (ImGui::SliderFloat("Speed B", &m_goldFlowSpeedB, 0.1f, 3.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowSpeedB", m_goldFlowSpeedB);
+        if (ImGui::SliderFloat("Blob Scale B", &m_goldFlowBlobScaleB, 4.0f, 60.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowBlobScaleB", m_goldFlowBlobScaleB);
+        if (ImGui::SliderFloat("Density B", &m_goldFlowDensityB, 0.0f, 1.0f))
+            m_cardMaterial->SetUniformValue("GoldFlowDensityB", m_goldFlowDensityB);
+
+        ImGui::Separator();
+        ImGui::Text("Sparkles");
+
+        if (ImGui::Checkbox("Sparkles", &m_enableSparkles))
+            m_cardMaterial->SetUniformValue("EnableSparkles", m_enableSparkles ? 1.0f : 0.0f);
+        if (ImGui::SliderFloat("Sparkle Density", &m_sparkleDensity, 0.0f, 0.5f))
+            m_cardMaterial->SetUniformValue("SparkleDensity", m_sparkleDensity);
+        if (ImGui::SliderFloat("Sparkle Brightness", &m_sparkleBrightness, 0.0f, 5.0f))
+            m_cardMaterial->SetUniformValue("SparkleBrightness", m_sparkleBrightness);
+        if (ImGui::SliderFloat("Sparkle Size", &m_sparkleSize, 0.3f, 2.0f))
+            m_cardMaterial->SetUniformValue("SparkleSize", m_sparkleSize);
+        if (ImGui::SliderFloat("Sparkle Speed", &m_sparkleSpeed, 0.1f, 3.0f))
+            m_cardMaterial->SetUniformValue("SparkleSpeed", m_sparkleSpeed);
     }
 
     if (auto window = m_imGui.UseWindow("Post FX"))
