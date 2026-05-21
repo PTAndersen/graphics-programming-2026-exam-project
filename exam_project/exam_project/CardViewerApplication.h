@@ -99,12 +99,6 @@ private:
     float m_goldFlowDensityB;
     float m_goldFlowSpeedB;
 
-    float m_sparkleDensity;
-    float m_sparkleBrightness;
-    float m_sparkleSize;
-    float m_sparkleSpeed;
-    bool  m_enableSparkles;
-
     float m_pixelSize;
     bool  m_enablePixelArt;
 };

@@ -46,11 +46,6 @@ CardViewerApplication::CardViewerApplication()
     , m_goldFlowBlobScaleB(12.5f)
     , m_goldFlowDensityB(0.5f)
     , m_goldFlowSpeedB(1.1f)
-    , m_sparkleDensity(0.4f)
-    , m_sparkleBrightness(0.3f)
-    , m_sparkleSize(0.3f)
-    , m_sparkleSpeed(1.2f)
-    , m_enableSparkles(true)
     , m_pixelSize(100.0f)
     , m_enablePixelArt(false)
 {
@@ -143,12 +138,6 @@ void CardViewerApplication::InitializeCard()
     m_cardMaterial->SetUniformValue("GoldFlowBlobScaleB", m_goldFlowBlobScaleB);
     m_cardMaterial->SetUniformValue("GoldFlowDensityB", m_goldFlowDensityB);
     m_cardMaterial->SetUniformValue("GoldFlowSpeedB", m_goldFlowSpeedB);
-
-    m_cardMaterial->SetUniformValue("SparkleDensity", m_sparkleDensity);
-    m_cardMaterial->SetUniformValue("SparkleBrightness", m_sparkleBrightness);
-    m_cardMaterial->SetUniformValue("SparkleSize", m_sparkleSize);
-    m_cardMaterial->SetUniformValue("SparkleSpeed", m_sparkleSpeed);
-    m_cardMaterial->SetUniformValue("EnableSparkles", m_enableSparkles ? 1.0f : 0.0f);
 
     m_cardMaterial->SetUniformValue("PixelSize", m_pixelSize);
     m_cardMaterial->SetUniformValue("EnablePixelArt", m_enablePixelArt ? 1.0f : 0.0f);
@@ -344,20 +333,6 @@ void CardViewerApplication::RenderGUI()
             m_cardMaterial->SetUniformValue("GoldFlowBlobScaleB", m_goldFlowBlobScaleB);
         if (ImGui::SliderFloat("Density B", &m_goldFlowDensityB, 0.0f, 1.0f))
             m_cardMaterial->SetUniformValue("GoldFlowDensityB", m_goldFlowDensityB);
-
-        ImGui::Separator();
-        ImGui::Text("Sparkles");
-
-        if (ImGui::Checkbox("Sparkles", &m_enableSparkles))
-            m_cardMaterial->SetUniformValue("EnableSparkles", m_enableSparkles ? 1.0f : 0.0f);
-        if (ImGui::SliderFloat("Sparkle Density", &m_sparkleDensity, 0.0f, 0.5f))
-            m_cardMaterial->SetUniformValue("SparkleDensity", m_sparkleDensity);
-        if (ImGui::SliderFloat("Sparkle Brightness", &m_sparkleBrightness, 0.0f, 5.0f))
-            m_cardMaterial->SetUniformValue("SparkleBrightness", m_sparkleBrightness);
-        if (ImGui::SliderFloat("Sparkle Size", &m_sparkleSize, 0.3f, 2.0f))
-            m_cardMaterial->SetUniformValue("SparkleSize", m_sparkleSize);
-        if (ImGui::SliderFloat("Sparkle Speed", &m_sparkleSpeed, 0.1f, 3.0f))
-            m_cardMaterial->SetUniformValue("SparkleSpeed", m_sparkleSpeed);
     }
 
     if (auto window = m_imGui.UseWindow("Post FX"))

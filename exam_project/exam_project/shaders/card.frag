@@ -33,12 +33,6 @@ uniform float GoldFlowSpeedB;
 uniform float GoldFlowBlobScaleB;
 uniform float GoldFlowDensityB;
 
-uniform float SparkleDensity;
-uniform float SparkleBrightness;
-uniform float SparkleSize;
-uniform float SparkleSpeed;
-uniform float EnableSparkles;
-
 uniform float PixelSize;
 uniform float EnablePixelArt;
 
@@ -178,49 +172,6 @@ void computeFlow(vec2 uv, out float hotA, out float hotB)
     hotB = flowLayer(uv + vec2(17.3), tB, GoldFlowBlobScaleB, GoldFlowDensityB);
 }
 
-// Radial dot sparkles on a coarse grid, 3x3 cell scan.
-float computeSparkles(vec2 uv)
-{
-    vec2 aspect = vec2(CardAspectRatio.x / CardAspectRatio.y, 1.0);
-    float gridScale = 14.0;
-    vec2 gridUv = uv * aspect * gridScale;
-
-    vec2 cell = floor(gridUv);
-    vec2 frag = fract(gridUv);
-
-    float total = 0.0;
-
-    for (int oy = -1; oy <= 1; ++oy)
-    for (int ox = -1; ox <= 1; ++ox)
-    {
-        vec2 offset = vec2(float(ox), float(oy));
-        vec2 neighbourCell = cell + offset;
-
-        float presence = hash21(neighbourCell + vec2(11.0, 23.0));
-        float presenceThreshold = 1.0 - SparkleDensity;
-        if (presence < presenceThreshold) continue;
-
-        vec2 jitter = vec2(
-            hash21(neighbourCell + vec2(7.0, 19.0)),
-            hash21(neighbourCell + vec2(31.0, 41.0))
-        );
-        vec2 sparkleCenter = offset + jitter;
-        vec2 delta = frag - sparkleCenter;
-
-        float phase = hash21(neighbourCell + vec2(53.0, 71.0));
-        float lifeT = fract(Time * SparkleSpeed * 0.3 + phase);
-        float life = 1.0 - abs(lifeT * 2.0 - 1.0);
-        life = pow(life, 2.5);
-
-        float radiusSq = 0.01 * SparkleSize;
-        float dot2 = exp(-dot(delta, delta) / radiusSq) * 1.8;
-
-        total += dot2 * life;
-    }
-
-    return total;
-}
-
 void main()
 {
     float screenAspect = ScreenSize.x / ScreenSize.y;
@@ -330,11 +281,6 @@ void main()
     goldenColor = mix(goldenColor, toSilver(baseColor),        mask.g);
     goldenColor = mix(goldenColor, toAgedParchment(baseColor), mask.a);
 
-    float sparkleMask = clamp(mask.r + mask.g, 0.0, 1.0);
-    float sparkles = computeSparkles(uv) * sparkleMask * EnableSparkles;
-    vec3 sparkleTint = vec3(1.10, 1.05, 0.90);
-    goldenColor += sparkleTint * sparkles * SparkleBrightness;
-
     // Sheen sweep, boosted by flow hotspots.
     float angleRad = radians(SheenAngleDeg);
     vec2 sweepDir = vec2(cos(angleRad), sin(angleRad));
@@ -357,10 +303,10 @@ void main()
     if (DebugMaskView > 0.5)
     {
         vec3 tint = vec3(1.0);
-        tint = mix(tint, vec3(1.0, 0.2, 0.2), mask.r);
-        tint = mix(tint, vec3(0.2, 1.0, 0.2), mask.g);
-        tint = mix(tint, vec3(0.2, 0.2, 1.0), mask.b);
-        tint = mix(tint, vec3(1.0, 1.0, 0.2), mask.a);
+        tint = mix(tint, vec3(1.0, 0.0, 0.0), mask.r);
+        tint = mix(tint, vec3(0.0, 1.0, 0.0), mask.g);
+        tint = mix(tint, vec3(0.0, 0.0, 1.0), mask.b);
+        tint = mix(tint, vec3(1.0, 1.0, 0.0), mask.a);
         color *= tint;
     }
 
