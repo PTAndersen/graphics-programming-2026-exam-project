@@ -17,7 +17,6 @@ uniform float EnableSheen;
 
 uniform float GoldSharpness;
 uniform float GoldGateCenter;
-uniform float GoldAnisotropy;
 uniform float GoldHueShift;
 
 uniform float GoldReliefStrength;
@@ -42,6 +41,8 @@ uniform float EnableSparkles;
 
 uniform float PixelSize;
 uniform float EnablePixelArt;
+
+uniform float DebugMaskView;
 
 float hash21(vec2 p)
 {
@@ -81,13 +82,6 @@ vec3 toGold(vec3 baseColor, vec2 uv)
     vec3 body = mix(goldShadow, goldMid, bodyT);
     vec3 hi = mix(goldMid, goldHighlight, gate);
     vec3 result = mix(body, hi, gate);
-
-    // Anisotropic streak from screen-space luminance gradient.
-    vec2 grain = vec2(dFdx(luminance), dFdy(luminance));
-    vec2 streakDir = normalize(vec2(0.7, 0.7));
-    float streak = clamp(abs(dot(grain, streakDir)) * 200.0, 0.0, 1.0);
-    float streakWeight = smoothstep(0.2, 0.7, luminance) * GoldAnisotropy;
-    result += vec3(0.90, 0.65, 0.20) * streak * streakWeight;
 
     vec3 paleGold = vec3(1.10, 1.05, 0.95);
     result = mix(result, result * paleGold * 0.95 + vec3(0.05, 0.10, 0.20) * GoldHueShift, GoldHueShift);
@@ -184,7 +178,7 @@ void computeFlow(vec2 uv, out float hotA, out float hotB)
     hotB = flowLayer(uv + vec2(17.3), tB, GoldFlowBlobScaleB, GoldFlowDensityB);
 }
 
-// 4-point star sparkles on a coarse grid, 3x3 cell scan.
+// Radial dot sparkles on a coarse grid, 3x3 cell scan.
 float computeSparkles(vec2 uv)
 {
     vec2 aspect = vec2(CardAspectRatio.x / CardAspectRatio.y, 1.0);
@@ -218,18 +212,10 @@ float computeSparkles(vec2 uv)
         float life = 1.0 - abs(lifeT * 2.0 - 1.0);
         life = pow(life, 2.5);
 
-        float spikeWidth = 0.015 / SparkleSize;
-        float spikeLength = 0.4 * SparkleSize;
+        float radiusSq = 0.01 * SparkleSize;
+        float dot2 = exp(-dot(delta, delta) / radiusSq) * 1.8;
 
-        float hSpike = exp(-(delta.y * delta.y) / spikeWidth) *
-                       exp(-(delta.x * delta.x) / (spikeLength * spikeLength));
-        float vSpike = exp(-(delta.x * delta.x) / spikeWidth) *
-                       exp(-(delta.y * delta.y) / (spikeLength * spikeLength));
-
-        float core = exp(-dot(delta, delta) / (0.005 * SparkleSize)) * 1.5;
-        float star = (hSpike + vSpike) * 0.6 + core;
-
-        total += star * life;
+        total += dot2 * life;
     }
 
     return total;
@@ -367,5 +353,16 @@ void main()
     goldenColor += sheen * metalMask * sheenTint * GoldenMode * EnableSheen;
 
     vec3 color = mix(normalColor, goldenColor, GoldenMode);
+
+    if (DebugMaskView > 0.5)
+    {
+        vec3 tint = vec3(1.0);
+        tint = mix(tint, vec3(1.0, 0.2, 0.2), mask.r);
+        tint = mix(tint, vec3(0.2, 1.0, 0.2), mask.g);
+        tint = mix(tint, vec3(0.2, 0.2, 1.0), mask.b);
+        tint = mix(tint, vec3(1.0, 1.0, 0.2), mask.a);
+        color *= tint;
+    }
+
     FragColor = vec4(color, 1.0);
 }

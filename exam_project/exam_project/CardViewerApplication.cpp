@@ -16,6 +16,7 @@ CardViewerApplication::CardViewerApplication()
     : Application(1024, 1024, "Card Viewer")
     , m_renderer(GetDevice())
     , m_sceneFramebuffer(std::make_shared<FramebufferObject>())
+    , m_debugMaskView(false)
     , m_goldenMode(false)
     , m_enableSheen(true)
     , m_exposure(1.0f)
@@ -33,7 +34,6 @@ CardViewerApplication::CardViewerApplication()
     , m_sheenBandOffset(0.18f)
     , m_goldSharpness(2.5f)
     , m_goldGateCenter(0.25f)
-    , m_goldAnisotropy(0.6f)
     , m_goldHueShift(0.0f)
     , m_goldReliefStrength(0.4f)
     , m_goldRimStrength(0.8f)
@@ -111,6 +111,7 @@ void CardViewerApplication::InitializeCard()
 
     m_cardMaterial = CreatePostFXMaterial("shaders/card.frag", m_cardAlbedoTexture);
     m_cardMaterial->SetUniformValue("MaskTexture", m_cardMaskTexture);
+    m_cardMaterial->SetUniformValue("DebugMaskView", m_debugMaskView ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("EnableSheen",      m_enableSheen      ? 1.0f : 0.0f);
     m_cardMaterial->SetUniformValue("CardAspectRatio", glm::vec2(1589.0f, 2361.0f));
@@ -127,7 +128,6 @@ void CardViewerApplication::InitializeCard()
     m_cardMaterial->SetUniformValue("SheenBandOffset", m_sheenBandOffset);
     m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
     m_cardMaterial->SetUniformValue("GoldGateCenter", m_goldGateCenter);
-    m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
     m_cardMaterial->SetUniformValue("GoldHueShift", m_goldHueShift);
 
     m_cardMaterial->SetUniformValue("GoldReliefStrength", m_goldReliefStrength);
@@ -272,6 +272,9 @@ void CardViewerApplication::RenderGUI()
 
     if (auto window = m_imGui.UseWindow("Card"))
     {
+        if (ImGui::Checkbox("Debug Mask View", &m_debugMaskView))
+            m_cardMaterial->SetUniformValue("DebugMaskView", m_debugMaskView ? 1.0f : 0.0f);
+        
         if (ImGui::Checkbox("Golden Mode", &m_goldenMode))
         {
             m_cardMaterial->SetUniformValue("GoldenMode", m_goldenMode ? 1.0f : 0.0f);
@@ -308,8 +311,6 @@ void CardViewerApplication::RenderGUI()
             m_cardMaterial->SetUniformValue("GoldSharpness", m_goldSharpness);
         if (ImGui::SliderFloat("Gate Center", &m_goldGateCenter, 0.05f, 0.95f))
             m_cardMaterial->SetUniformValue("GoldGateCenter", m_goldGateCenter);
-        if (ImGui::SliderFloat("Anisotropy", &m_goldAnisotropy, 0.0f, 2.0f))
-            m_cardMaterial->SetUniformValue("GoldAnisotropy", m_goldAnisotropy);
         if (ImGui::SliderFloat("Hue Shift", &m_goldHueShift, 0.0f, 1.0f))
             m_cardMaterial->SetUniformValue("GoldHueShift", m_goldHueShift);
 

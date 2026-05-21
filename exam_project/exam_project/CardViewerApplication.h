@@ -60,6 +60,7 @@ private:
     std::array<std::shared_ptr<Texture2DObject>, 2> m_tempTextures;
 
     // Card configuration values
+    bool  m_debugMaskView;
     bool m_goldenMode;
     bool m_enableSheen;
 
@@ -82,7 +83,6 @@ private:
 
     float m_goldSharpness;
     float m_goldGateCenter;
-    float m_goldAnisotropy;
     float m_goldHueShift;
 
     float m_goldReliefStrength;
